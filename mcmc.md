@@ -1,5 +1,10 @@
 \newcommand{\ud}{\mathrm{d}}
 
+This doesn’t have much to do with nicer code, but there is probably
+some overlap in interest. However, some of the topics that we cover
+arise naturally here, so read on!
+
+
 # What is MCMC and when would you use it?
 
 ## MCMC is a way of sampling from a distribution
