@@ -30,6 +30,9 @@ options(max.print=170)
 ## although it is possible to view many other commonly used methods as
 ## simply special cases of MCMC.
 
+## As the above paragraph shows, there is a bootstrapping problem with
+## this topic, that we will slowly resolve.
+
 ## ## Why would I want to sample from a distribution?
 
 ## You may not realise you want to (and really, you may not actually
@@ -149,7 +152,7 @@ for (i in seq_len(30))
 ## for $a$.  Or, you can just take the sample quantile from your
 ## series of sampled points.
 
-## This is the analytically computed point where 2.5% of the
+## This is the analytically computed point where 2.5\% of the
 ## probability density is below:
 p <- 0.025
 a.true <- qnorm(p, m, s)
@@ -177,6 +180,76 @@ a.true - a.mc
 ## of magnitide as the error around the mean:
 a.mc <- replicate(100, quantile(rnorm(10000, m, s), p))
 summary(a.true - a.mc)
+
+## ## Still not convinced?
+
+## This sort of thing is really common.  In most Bayesian inference
+## you have a posterior distribution that is a function of some
+## (potentially large) vector of parameters and you want to make
+## inferences about a subset of these parameters.  In a heirarchical
+## model, you might have a large number of random effect terms being
+## fitted, but you mostly want to make inferences about one parameter.
+## In a Bayesian framework you would compute the *marginal
+## distribution* of your parameter of interest over all the other
+## parameters (this is what we were trying to do above).  If you have
+## 50 other parameters, this is a really hard integral!
+
+## To see why this is hard, consider the region of parameter space
+## that contains "interesting" parameter values: that is, parameter
+## values that have probabilities that are appreciably greater than
+## zero (these are the only regions that contribute meaningfully to
+## the integrals that we're interested in, so if we spend our time
+## doing a grid search and mostly hitting zeros then we'll be wasting
+## time).
+
+## For an illustration of the problem,
+
+##   * consider a circle of radius $r$ within a square with sides of
+##     length $2r$; the "interesting" region of space is $\pi r^2 / 4
+##     r^2 = \pi / 4$, so we'd have a good chance that a randomly
+##     selected point lies within the circle.
+##   * For a sphere with radius $r$ in a *cube* with sides of length
+##     $2r$, the volume of the sphere is $4/(3 \pi r^3)$ and the volume
+##     of the cube is $(2d)^3$, so $4/3 \pi / 8 \approx 52\%$ of the
+##     volume is "interesting"
+##   * As the dimensionality of the problem, $d$, increases (using a
+##     hypersphere in a hypercube) this ratio is
+##     $$\frac{\pi^{d/2}}{d2^{d-1}\Gamma(d/2)}$$
+d <- 2:10
+plot(d, pi^(d/2) / (d * 2^(d-1) * gamma(d/2)), log="y", las=1,
+     xlab="Dimension",
+     ylab="Proportion of hypercube filled with hypersphere")
+
+## So we don't need to add many dimensions to be primarily interested
+## in a very small fraction of the potential space.  (It's also worth
+## remembering that most integrals that converge must be zero almost
+## everywhere or have a naturally very constrained domain.)
+
+## As a less abstract idea, consider a multivariate normal
+## distribution with zero covariance terms, a mean at the origin, and
+## unit variances.  These have a distinct mode (maximum) at the
+## origin, and the *ratio* of probabilities at a point and at the mode
+## is
+
+## $$\exp(-\sum_{i=1, d} x_i^2)$$
+
+## The thing about this function is that *any* large value of $x_i$
+## will cause the probability to be low.  So as the dimension of the
+## problem increases, the interesting space gets very small.  Consider
+## sampling within the region $-5 < x_i < 5$, and count how many of
+## 10,000  sampled points have a relative probability greater than
+## 1/1000
+test <- function(d, x=5)
+  exp(-sum(runif(d, -x, x)^2)) > 1/1000
+f <- function(d, n)
+  mean(replicate(n, test(d)))
+
+d <- 1:10
+data.frame(dimension=d, p.interesting=sapply(d, f, 10000))
+
+## which drops off much like the hypersphere case.  Even by looking at
+## only 4-5 dimensions we're likely to waste a lot of time if we tried
+## to exhaustively integrate over parameter space.
 
 ## ## Why doesn't "normal statistics" use Monte Carlo methods?
 
@@ -342,7 +415,7 @@ matlines(0:n, y2, lty=2)
 matlines(0:n, y3, lty=3)
 
 ## which means that regardless of the starting distribution, there is
-## a 32% chance of the chain being in state 1 after about 10 or more
+## a 32\% chance of the chain being in state 1 after about 10 or more
 ## iterations *regardless of where it started*.  So, knowing about the
 ## state of this chain at one point in time gives you information
 ## about where it is likely to be for only a few steps.
@@ -437,6 +510,12 @@ abline(h=v, lty=2, col=1:3)
 ## which holds for all $k$ so
 
 ## $$\vec\pi^*\mathbf{P} = \vec\pi^*$$
+
+## So the key point here is: Markov chains are neat and well
+## understood things, with some nice properties.  Markov chains have
+## stationary distributions, and if we run them for long enough we can
+## just look at the where the chain is spending its time and get a
+## reasonable estimate of that stationary distribution.
 
 ## ## The Metropolis algorithm
 
